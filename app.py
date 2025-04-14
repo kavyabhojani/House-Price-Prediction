@@ -45,7 +45,7 @@ input_df["OverallQual_GrLivArea"] = OverallQuality * GrLivArea
 input_df["GarageCars_YearBuilt"] = GarageCars * YearBuilt
 input_df["Qual_Bsmt"] = OverallQuality * TotalBsmtSF
 input_df["Year_Overall"] = YearBuilt * OverallQuality
-input_df["Neighborhood_enc"] = template_df["Neighborhood_enc"].mean()  # Use realistic average
+input_df["Neighborhood_enc"] = 0 
 
 # Ensure order matches scaler
 try:
