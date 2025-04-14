@@ -1,5 +1,4 @@
 # House-Price-Prediction
-# House Price Prediction Web App
 
 This project is a full machine learning pipeline that predicts house prices based on various property features. It includes data preprocessing, feature engineering, model building, evaluation, and deployment using Streamlit.
 
