@@ -3,12 +3,7 @@ import pandas as pd
 import numpy as np
 import joblib
 
-# Load ensemble model, template row, and scaler
-model = joblib.load("best_model_ensemble.pkl")
-template_df = joblib.load("template_input_df.pkl")
-scaler = joblib.load("scaler.pkl")
-
-# Define ensemble model class to support joblib
+# Define ensemble class before loading
 class CustomEnsembleModel:
     def __init__(self, models, weights):
         self.models = models
@@ -22,12 +17,17 @@ class CustomEnsembleModel:
         weighted_preds = sum(w * p for w, p in zip(self.weights, preds))
         return weighted_preds
 
-# Streamlit layout
+# Load trained components
+model = joblib.load("best_model_ensemble.pkl")
+template_df = joblib.load("template_input_df.pkl")
+scaler = joblib.load("scaler.pkl")
+
+# Page setup
 st.set_page_config(page_title="House Price Predictor", layout="centered")
 st.title("House Price Predictor")
 st.markdown("Enter house details to estimate the sale price.")
 
-# Input controls
+# Input fields
 col1, col2 = st.columns(2)
 with col1:
     OverallQuality = st.slider("Overall Quality (1–10)", 1, 10, 5)
@@ -37,7 +37,7 @@ with col2:
     GrLivArea = st.number_input("Above Ground Living Area (sq ft)", 400, 6000, 1500)
     TotalBsmtSF = st.number_input("Basement Area (sq ft)", 0, 3000, 800)
 
-# Prepare input dataframe
+# Create input row from template
 input_df = template_df.copy()
 input_df["OverallQuality"] = OverallQuality
 input_df["GarageCars"] = GarageCars
@@ -48,16 +48,16 @@ input_df["OverallQual_GrLivArea"] = OverallQuality * GrLivArea
 input_df["GarageCars_YearBuilt"] = GarageCars * YearBuilt
 input_df["Qual_Bsmt"] = OverallQuality * TotalBsmtSF
 input_df["Year_Overall"] = YearBuilt * OverallQuality
-input_df["Neighborhood_enc"] = 180000  # static encoding
+input_df["Neighborhood_enc"] = 180000
 
-# ✅ Ensure column order and names match scaler
+# Ensure correct order for scaler
 try:
     input_df = input_df[scaler.feature_names_in_]
 except Exception as e:
-    st.error(f"❌ Column mismatch with scaler. Details: {e}")
+    st.error(f"Input feature mismatch. Details: {e}")
     st.stop()
 
-# Scale input
+# Apply scaler
 input_scaled = pd.DataFrame(scaler.transform(input_df), columns=input_df.columns)
 
 # Predict
@@ -65,12 +65,12 @@ if st.button("Predict Price"):
     try:
         prediction = model.predict(input_scaled)
         price = prediction[0]
-        if np.isinf(price) or np.isnan(price):
-            st.error("⚠️ Invalid prediction value. Try different input.")
+        if np.isnan(price) or np.isinf(price):
+            st.error("Prediction failed. Invalid output.")
         else:
             st.success(f"Estimated House Price: ${price:,.2f}")
     except Exception as e:
-        st.error(f"Prediction failed: {str(e)}")
+        st.error(f"Prediction error: {e}")
 
 # Footer
-st.caption("Model trained using Linear, Lasso, XGBoost, and LightGBM — combined in a weighted ensemble.")
+st.caption("Model trained using Linear, Lasso, XGBoost, and LightGBM in a weighted ensemble.")
