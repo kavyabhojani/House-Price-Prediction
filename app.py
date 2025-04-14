@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import joblib
 
-# Define ensemble class
+# Define ensemble class (inverse applied only once)
 class CustomEnsembleModel:
     def __init__(self, models, weights):
         self.models = models
@@ -45,9 +45,9 @@ input_df["OverallQual_GrLivArea"] = OverallQuality * GrLivArea
 input_df["GarageCars_YearBuilt"] = GarageCars * YearBuilt
 input_df["Qual_Bsmt"] = OverallQuality * TotalBsmtSF
 input_df["Year_Overall"] = YearBuilt * OverallQuality
-input_df["Neighborhood_enc"] = 180000  # default or average
+input_df["Neighborhood_enc"] = 180000  # default value
 
-# Ensure order matches scaler
+# Ensure input order matches scaler
 try:
     input_df = input_df[scaler.feature_names_in_]
 except Exception as e:
