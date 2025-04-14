@@ -71,12 +71,10 @@ This project is a full machine learning pipeline that predicts house prices base
 1. Clone the repository
 2. Ensure all `.pkl` files are present
 3. Run locally: `streamlit run app.py`
-4. Or deploy on [Streamlit Cloud](https://streamlit.io)
 
 ---
 
 ## Author
 Kavya Bhojani  
-Master's in Applied Computer Science, Dalhousie University
 
 ---
