@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import joblib
 
-# Define ensemble class (inverse applied only once)
+# Define ensemble class
 class CustomEnsembleModel:
     def __init__(self, models, weights):
         self.models = models
@@ -45,9 +45,9 @@ input_df["OverallQual_GrLivArea"] = OverallQuality * GrLivArea
 input_df["GarageCars_YearBuilt"] = GarageCars * YearBuilt
 input_df["Qual_Bsmt"] = OverallQuality * TotalBsmtSF
 input_df["Year_Overall"] = YearBuilt * OverallQuality
-input_df["Neighborhood_enc"] = 180000  # default value
+input_df["Neighborhood_enc"] = template_df["Neighborhood_enc"].mean()  # Use realistic average
 
-# Ensure input order matches scaler
+# Ensure order matches scaler
 try:
     input_df = input_df[scaler.feature_names_in_]
 except Exception as e:
@@ -64,6 +64,8 @@ if st.button("Predict Price"):
         price = prediction[0]
         if np.isnan(price) or np.isinf(price):
             st.error("Prediction failed. Invalid output.")
+        elif price > 1_500_000:
+            st.warning(f"Estimated House Price: ${price:,.2f}\n\n(Note: This value seems unusually high. Double-check your inputs.)")
         else:
             st.success(f"Estimated House Price: ${price:,.2f}")
     except Exception as e:
