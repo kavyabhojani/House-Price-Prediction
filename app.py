@@ -14,7 +14,7 @@ class CustomEnsembleModel:
         for i, model in enumerate(self.models):
             try:
                 raw_pred = model.predict(X)
-                raw_pred = np.clip(raw_pred, a_min=0, a_max=18)  # avoid overflow
+                raw_pred = np.clip(raw_pred, a_min=0, a_max=18)  # prevent overflow
                 final_pred = np.expm1(raw_pred)
                 preds.append(final_pred)
             except Exception as e:
@@ -23,14 +23,19 @@ class CustomEnsembleModel:
         weighted_preds = sum(w * p for w, p in zip(self.weights, preds))
         return weighted_preds
 
-# Load the model and the expected training column order
+# Load the trained ensemble model
 model = joblib.load("best_model_ensemble.pkl")
+
+# Load the expected feature column list (optional fallback)
 model_columns = joblib.load("model_columns.pkl")
+
+# Load a full template input row from training data (has all required columns)
+template_df = joblib.load("template_input_df.pkl")
 
 # Streamlit UI
 st.set_page_config(page_title="House Price Predictor", layout="centered")
 st.title("House Price Predictor")
-st.markdown("Enter house details to get the estimated sale price.")
+st.markdown("Enter house details to estimate the sale price.")
 
 # Input fields
 col1, col2 = st.columns(2)
@@ -44,40 +49,32 @@ with col2:
     GrLivArea = st.number_input("Above Ground Living Area (sq ft)", 400, 6000, 1500)
     TotalBsmtSF = st.number_input("Basement Area (sq ft)", 0, 3000, 800)
 
-# Interaction features
-OverallQual_GrLivArea = OverallQuality * GrLivArea
-GarageCars_YearBuilt = GarageCars * YearBuilt
-Qual_Bsmt = OverallQuality * TotalBsmtSF
-Year_Overall = YearBuilt * OverallQuality
-Neighborhood_enc = 180000  # placeholder for encoded categorical value
+# Start with a template row and update relevant values
+input_df = template_df.copy()
+input_df["OverallQuality"] = OverallQuality
+input_df["GrLivArea"] = GrLivArea
+input_df["GarageCars"] = GarageCars
+input_df["TotalBsmtSF"] = TotalBsmtSF
+input_df["YearBuilt"] = YearBuilt
+input_df["OverallQual_GrLivArea"] = OverallQuality * GrLivArea
+input_df["GarageCars_YearBuilt"] = GarageCars * YearBuilt
+input_df["Qual_Bsmt"] = OverallQuality * TotalBsmtSF
+input_df["Year_Overall"] = YearBuilt * OverallQuality
+input_df["Neighborhood_enc"] = 180000  # Placeholder encoding
 
-# Construct input DataFrame
-input_df = pd.DataFrame([{
-    "OverallQuality": OverallQuality,
-    "GrLivArea": GrLivArea,
-    "GarageCars": GarageCars,
-    "TotalBsmtSF": TotalBsmtSF,
-    "YearBuilt": YearBuilt,
-    "OverallQual_GrLivArea": OverallQual_GrLivArea,
-    "GarageCars_YearBuilt": GarageCars_YearBuilt,
-    "Qual_Bsmt": Qual_Bsmt,
-    "Year_Overall": Year_Overall,
-    "Neighborhood_enc": Neighborhood_enc
-}])
-
-# Reindex to match model input columns
+# Ensure correct column order and fill any missing values
 input_df = input_df.reindex(columns=model_columns, fill_value=0)
 
-# Run prediction and display result
+# Run prediction and display
 if st.button("Predict Price"):
     try:
         price = model.predict(input_df)
         if np.isinf(price[0]) or np.isnan(price[0]):
-            st.error("Prediction resulted in an invalid value. Please adjust the inputs.")
+            st.error("Prediction resulted in an invalid value. Please adjust your inputs.")
         else:
             st.success(f"Estimated House Price: ${price[0]:,.2f}")
     except Exception as e:
         st.error(f"Prediction failed: {str(e)}")
 
 # Footer
-st.caption("Model trained using XGBoost, Lasso, Linear, LightGBM — combined in a weighted ensemble.")
+st.caption("Model trained using Linear, Lasso, XGBoost, and LightGBM with weighted ensemble.")
