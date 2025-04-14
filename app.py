@@ -10,15 +10,24 @@ class CustomEnsembleModel:
         self.weights = weights
 
     def predict(self, X):
-        preds = [np.expm1(model.predict(X)) for model in self.models]
+        preds = []
+        for i, model in enumerate(self.models):
+            try:
+                raw_pred = model.predict(X)
+                raw_pred = np.clip(raw_pred, a_min=0, a_max=18)  # avoid overflow
+                final_pred = np.expm1(raw_pred)
+                preds.append(final_pred)
+            except Exception as e:
+                print(f"Model {i} failed: {e}")
+                preds.append(np.zeros(X.shape[0]))  # fallback
         weighted_preds = sum(w * p for w, p in zip(self.weights, preds))
         return weighted_preds
 
-# Load the saved model and expected feature columns
+# Load the model and the expected training column order
 model = joblib.load("best_model_ensemble.pkl")
 model_columns = joblib.load("model_columns.pkl")
 
-# Streamlit app UI
+# Streamlit UI
 st.set_page_config(page_title="House Price Predictor", layout="centered")
 st.title("House Price Predictor")
 st.markdown("Enter house details to get the estimated sale price.")
@@ -35,14 +44,14 @@ with col2:
     GrLivArea = st.number_input("Above Ground Living Area (sq ft)", 400, 6000, 1500)
     TotalBsmtSF = st.number_input("Basement Area (sq ft)", 0, 3000, 800)
 
-# Generate interaction features
+# Interaction features
 OverallQual_GrLivArea = OverallQuality * GrLivArea
 GarageCars_YearBuilt = GarageCars * YearBuilt
 Qual_Bsmt = OverallQuality * TotalBsmtSF
 Year_Overall = YearBuilt * OverallQuality
-Neighborhood_enc = 180000  # Placeholder target encoding
+Neighborhood_enc = 180000  # placeholder for encoded categorical value
 
-# Create the input DataFrame
+# Construct input DataFrame
 input_df = pd.DataFrame([{
     "OverallQuality": OverallQuality,
     "GrLivArea": GrLivArea,
@@ -56,13 +65,19 @@ input_df = pd.DataFrame([{
     "Neighborhood_enc": Neighborhood_enc
 }])
 
-#Reindex to match training feature structure
+# Reindex to match model input columns
 input_df = input_df.reindex(columns=model_columns, fill_value=0)
 
-# Predict and show result
+# Run prediction and display result
 if st.button("Predict Price"):
-    price = model.predict(input_df)
-    st.success(f" Estimated House Price: **${price[0]:,.2f}**")
+    try:
+        price = model.predict(input_df)
+        if np.isinf(price[0]) or np.isnan(price[0]):
+            st.error("Prediction resulted in an invalid value. Please adjust the inputs.")
+        else:
+            st.success(f"Estimated House Price: ${price[0]:,.2f}")
+    except Exception as e:
+        st.error(f"Prediction failed: {str(e)}")
 
 # Footer
 st.caption("Model trained using XGBoost, Lasso, Linear, LightGBM — combined in a weighted ensemble.")
