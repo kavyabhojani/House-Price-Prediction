@@ -12,11 +12,14 @@ class CustomEnsembleModel:
 
     def predict(self, X):
         raw_preds = [model.predict(X)[0] for model in self.models]
-        final_pred = np.expm1(sum(w * p for w, p in zip(self.weights, raw_preds)))
+        weighted_log_pred = sum(w * p for w, p in zip(self.weights, raw_preds))
+        weighted_log_pred = np.clip(weighted_log_pred, 5, 13)  # 🛡 Clip to avoid overflow
+        final_pred = np.expm1(weighted_log_pred)
         debug_info = {
             name: f"${np.expm1(p):,.2f}" for name, p in zip(self.model_names, raw_preds)
         }
         return final_pred, debug_info
+
 
 # Load saved components
 model = joblib.load("best_model_ensemble.pkl")
