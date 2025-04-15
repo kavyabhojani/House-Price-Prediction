@@ -13,14 +13,9 @@ class CustomEnsembleModel:
         preds = [model.predict(X)[0] for model in self.models]
         weighted_log_pred = sum(w * p for w, p in zip(self.weights, preds))
 
-        try:
-            final_price = np.expm1(weighted_log_pred)
-        except OverflowError:
-            final_price = 300000  # fallback reasonable price
-
-        return final_price
-
-
+        # Hard cap the output to prevent overflow
+        weighted_log_pred = np.clip(weighted_log_pred, 5, 13)  # 5~13 = $148K to ~$442K
+        return np.expm1(weighted_log_pred)
 
 # Load components
 model = joblib.load("best_model_ensemble.pkl")
