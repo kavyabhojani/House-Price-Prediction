@@ -12,7 +12,7 @@ class CustomEnsembleModel:
     def predict(self, X):
         preds = [model.predict(X) for model in self.models]
         weighted_preds = sum(w * p for w, p in zip(self.weights, preds))
-        return np.expm1(weighted_preds)  # Apply inverse only once
+        return np.expm1(weighted_preds)  # Apply inverse log1p
 
 # Load saved components
 model = joblib.load("best_model_ensemble.pkl")
@@ -41,11 +41,23 @@ input_df["GarageCars"] = GarageCars
 input_df["YearBuilt"] = YearBuilt
 input_df["GrLivArea"] = GrLivArea
 input_df["TotalBsmtSF"] = TotalBsmtSF
+
+# Interaction features
 input_df["OverallQual_GrLivArea"] = OverallQuality * GrLivArea
 input_df["GarageCars_YearBuilt"] = GarageCars * YearBuilt
 input_df["Qual_Bsmt"] = OverallQuality * TotalBsmtSF
 input_df["Year_Overall"] = YearBuilt * OverallQuality
-input_df["Neighborhood_enc"] = 0 
+input_df["Neighborhood_enc"] = 0  # Default to mean
+
+# Cap interaction terms based on training distribution
+input_df["OverallQual_GrLivArea"] = np.minimum(input_df["OverallQual_GrLivArea"], 7 * 2000)
+input_df["GarageCars_YearBuilt"] = np.minimum(input_df["GarageCars_YearBuilt"], 3 * 2000)
+input_df["Qual_Bsmt"] = np.minimum(input_df["Qual_Bsmt"], 10 * 1500)
+input_df["Year_Overall"] = np.minimum(input_df["Year_Overall"], 10 * 2000)
+
+# Check for unusual input combinations
+if GrLivArea > 3000 or TotalBsmtSF > 2000 or YearBuilt > 2015:
+    st.warning("Some inputs are unusually high — prediction may be affected.")
 
 # Ensure order matches scaler
 try:
@@ -57,6 +69,9 @@ except Exception as e:
 # Scale features
 input_scaled = pd.DataFrame(scaler.transform(input_df), columns=input_df.columns)
 
+# Optional: Show debug info
+# st.write("Model Input Debug", input_scaled)
+
 # Predict on button click
 if st.button("Predict Price"):
     try:
@@ -64,7 +79,7 @@ if st.button("Predict Price"):
         price = prediction[0]
         if np.isnan(price) or np.isinf(price):
             st.error("Prediction failed. Invalid output.")
-        elif price > 1_500_000:
+        elif price > 1_000_000:
             st.warning(f"Estimated House Price: ${price:,.2f}\n\n(Note: This value seems unusually high. Double-check your inputs.)")
         else:
             st.success(f"Estimated House Price: ${price:,.2f}")
