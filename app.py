@@ -13,12 +13,13 @@ class CustomEnsembleModel:
         preds = [model.predict(X)[0] for model in self.models]
         weighted_log_pred = sum(w * p for w, p in zip(self.weights, preds))
 
-        #Clip only if log price is too large or small
-        if weighted_log_pred < 5 or weighted_log_pred > 13:
-            weighted_log_pred = np.clip(weighted_log_pred, 5, 13)
+        try:
+            final_price = np.expm1(weighted_log_pred)
+        except OverflowError:
+            final_price = 300000  # fallback reasonable price
 
-        final_price = np.expm1(weighted_log_pred)
         return final_price
+
 
 
 # Load components
