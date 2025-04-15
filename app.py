@@ -12,8 +12,14 @@ class CustomEnsembleModel:
     def predict(self, X):
         preds = [model.predict(X)[0] for model in self.models]
         weighted_log_pred = sum(w * p for w, p in zip(self.weights, preds))
-        weighted_log_pred = np.clip(weighted_log_pred, 5, 13)  # 🛡 Clipping to avoid overflow
-        return np.expm1(weighted_log_pred)
+
+        #Clip only if log price is too large or small
+        if weighted_log_pred < 5 or weighted_log_pred > 13:
+            weighted_log_pred = np.clip(weighted_log_pred, 5, 13)
+
+        final_price = np.expm1(weighted_log_pred)
+        return final_price
+
 
 # Load components
 model = joblib.load("best_model_ensemble.pkl")
